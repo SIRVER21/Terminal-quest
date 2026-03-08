@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KANCELARIA SPADKOWA — Terminal Quest</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=VT323&display=swap');
+
+  :root {
+    --green: #00ff88;
+    --green-dim: #00aa55;
+    --green-dark: #003322;
+    --bg: #020d08;
+    --bg2: #041a0e;
+    --red: #ff3344;
+    --yellow: #ffcc00;
+    --border: #00ff8844;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  @keyframes flicker { 0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:.85} 94%{opacity:1} }
+  body { animation: flicker 8s infinite; }
+
+  #app { max-width: 860px; margin: 0 auto; padding: 20px; min-height: 100vh; }
+
+  .header { text-align: center; padding: 30px 0 20px; border-bottom: 1px solid var(--border); margin-bottom: 30px; }
+  .header .org { font-family: 'Orbitron', monospace; font-size: 0.75em; font-weight: 400; color: var(--green-dim); letter-spacing: 4px; margin-bottom: 8px; }
+  .header .title { font-family: 'VT323', monospace; font-size: 3.5em; color: var(--green); text-shadow: 0 0 20px var(--green), 0 0 40px var(--green-dim); line-height: 1; }
+  .header .subtitle { font-size: 0.72em; color: var(--green-dim); margin-top: 8px; letter-spacing: 2px; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .terminal-box {
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    padding: 24px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .terminal-box::before {
+    content: attr(data-label);
+    position: absolute; top: -10px; left: 16px;
+    background: var(--bg); padding: 0 8px;
+    font-size: 0.68em; color: var(--green-dim); letter-spacing: 2px;
+  }
+
+  .tt { line-height: 1.9; font-size: 0.88em; }
+  .tt > div { margin-bottom: 2px; }
+  .p { color: var(--green-dim); }
+  .hl { color: var(--yellow); text-shadow: 0 0 8px var(--yellow); }
+  .er { color: var(--red); text-shadow: 0 0 8px var(--red); }
+  .money-big { color: var(--yellow); font-family: 'VT323', monospace; font-size: 1.5em; }
+
+  hr.div { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+  /* Hint */
+  .hint-section { margin-top: 16px; }
+  .hint-btn {
+    background: transparent;
+    border: 1px dashed var(--green-dim);
+    color: var(--green-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78em;
+    padding: 8px 16px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+  }
+  .hint-btn:hover:not(:disabled) { border-color: var(--yellow); color: var(--yellow); }
+  .hint-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .hint-countdown { font-size: 0.72em; color: var(--green-dim); margin-left: 12px; }
+  .hint-content {
+    display: none;
+    border: 1px solid var(--yellow);
+    background: rgba(255,204,0,0.04);
+    padding: 14px 16px;
+    margin-top: 12px;
+    font-size: 0.82em;
+    color: var(--yellow);
+    line-height: 1.7;
+  }
+  .hint-content.visible { display: block; }
+
+  /* Team select */
+  .team-select { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  .team-btn {
+    border: 1px solid var(--border); background: var(--bg2);
+    color: var(--green); font-family: 'VT323', monospace;
+    font-size: 2.2em; padding: 28px; cursor: pointer;
+    letter-spacing: 4px; transition: all 0.2s; text-align: center;
+  }
+  .team-btn:hover { background: var(--green-dark); border-color: var(--green); box-shadow: 0 0 20px var(--green-dim); }
+  .team-btn span { display: block; font-family: 'Share Tech Mono', monospace; font-size: 0.32em; letter-spacing: 2px; margin-top: 6px; color: var(--green-dim); }
+
+  /* Progress */
+  .progress-bar { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+  .pip { flex: 1; min-width: 40px; height: 7px; background: var(--green-dark); border: 1px solid var(--green-dim); transition: all 0.3s; }
+  .pip.done { background: var(--green); box-shadow: 0 0 6px var(--green-dim); }
+  .pip.current { background: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 8px var(--yellow); animation: blink 1s infinite; }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .status-bar { display: flex; justify-content: space-between; font-size: 0.7em; color: var(--green-dim); margin-bottom: 16px; letter-spacing: 1px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .timer-disp { font-family: 'Orbitron', monospace; font-size: 1.1em; color: var(--yellow); letter-spacing: 3px; }
+
+  /* Input area */
+  .caesar-area { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 18px; }
+  .caesar-label { font-size: 0.78em; color: var(--green-dim); letter-spacing: 2px; margin-bottom: 12px; }
+  .caesar-inputs { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .caesar-field-wrap { display: flex; flex-direction: column; gap: 4px; }
+  .caesar-field-label { font-size: 0.68em; color: var(--green-dim); letter-spacing: 1px; }
+  .caesar-field {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--green-dim);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1em;
+    padding: 4px 0;
+    outline: none;
+    text-transform: uppercase;
+    width: 180px;
+  }
+  .caesar-field.shift-field { width: 70px; text-transform: none; }
+  .caesar-field:focus { border-bottom-color: var(--green); }
+  .caesar-field::placeholder { color: var(--green-dark); }
+  .caesar-field:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-submit {
+    background: transparent;
+    border: 1px solid var(--green);
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85em;
+    padding: 10px 22px;
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.2s;
+    box-shadow: 0 0 8px var(--green-dim);
+    align-self: flex-end;
+  }
+  .btn-submit:hover:not(:disabled) { background: var(--green-dark); box-shadow: 0 0 16px var(--green-dim); }
+  .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+  .feedback-area { margin-top: 12px; min-height: 22px; font-size: 0.84em; }
+
+  /* Loading bar (Igor) */
+  .bar-wrap { margin: 14px 0; }
+  .bar-label { font-size: 0.8em; color: var(--green-dim); margin-bottom: 5px; }
+  .bar-outer { width: 100%; height: 13px; background: var(--green-dark); border: 1px solid var(--green-dim); }
+  .bar-inner { height: 100%; background: var(--green); box-shadow: 0 0 8px var(--green); transition: width 0.3s linear; }
+
+  /* Locked — inline banner (not fullscreen) */
+  .lock-banner {
+    display: none;
+    border: 2px solid var(--red);
+    background: rgba(255,51,68,0.07);
+    padding: 18px 24px;
+    margin-top: 16px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(255,51,68,0.25);
+  }
+  .lock-banner.active { display: block; }
+  .lock-banner-title { font-family: 'VT323', monospace; font-size: 2em; color: var(--red); text-shadow: 0 0 12px var(--red); }
+  .lock-banner-timer { font-family: 'Orbitron', monospace; font-size: 1.8em; color: var(--red); margin: 8px 0; }
+  .lock-bar-outer { width: 100%; height: 8px; background: #1a0000; border: 1px solid var(--red); margin-top: 8px; }
+  .lock-bar-inner { height: 100%; background: var(--red); box-shadow: 0 0 6px var(--red); transition: width 1s linear; }
+
+  @keyframes successFlash { 0%{background:var(--bg)} 20%{background:rgba(0,255,136,0.08)} 100%{background:var(--bg)} }
+  .success-flash { animation: successFlash 1s ease; }
+
+  .money-rain { font-family: 'VT323', monospace; font-size: 1.2em; color: var(--yellow); text-shadow: 0 0 8px var(--yellow); text-align: center; padding: 14px 0; line-height: 1.5; }
+
+  .final-title { font-family: 'VT323', monospace; font-size: 4em; color: var(--green); text-shadow: 0 0 30px var(--green); text-align: center; line-height: 1; margin-bottom: 20px; }
+
+  @keyframes typeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  .tl { animation: typeIn 0.3s ease forwards; opacity: 0; }
+  .tl:nth-child(1){animation-delay:.1s} .tl:nth-child(2){animation-delay:.3s}
+  .tl:nth-child(3){animation-delay:.5s} .tl:nth-child(4){animation-delay:.7s}
+  .tl:nth-child(5){animation-delay:.9s} .tl:nth-child(6){animation-delay:1.1s}
+  .tl:nth-child(7){animation-delay:1.3s} .tl:nth-child(8){animation-delay:1.5s}
+
+  @media(max-width:600px){
+    .header .title{font-size:2.5em}
+    .team-select{grid-template-columns:1fr}
+    .caesar-inputs{flex-direction:column;align-items:stretch}
+    .caesar-field,.btn-submit{width:100%}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="header">
+    <div class="org">KANCELARIA SPADKOWA „PRADZIADO &amp; SYN"</div>
+    <div class="title">TERMINAL QUEST</div>
+    <div class="subtitle">[ SPRAWA PRADZIADA — AKTA NR 40.000.000 ]</div>
+  </div>
+
+  <!-- INTRO -->
+  <div id="screen-intro" class="screen active">
+    <div class="terminal-box" data-label="INICJALIZACJA">
+      <div class="tt">
+        <div class="tl"><span class="p">&gt;</span> Witaj, Agencie.</div>
+        <div class="tl"><span class="p">&gt;</span> Kancelaria Spadkowa <span class="hl">"Pradziado &amp; Syn"</span> zleca Ci misję.</div>
+        <div class="tl"><span class="p">&gt;</span> Prapradziadek Kazimierz zostawił testament.</div>
+        <div class="tl"><span class="p">&gt;</span> Wartość majątku: <span class="money-big">40 000 000 PLN</span></div>
+        <div class="tl"><span class="p">&gt;</span> Testament jest podzielony — <span class="hl">10 świadków, 10 śladów.</span></div>
+        <div class="tl"><span class="p">&gt;</span> Każdy świadek ukrył swój ślad w innym miejscu.</div>
+        <hr class="div">
+        <div class="tl"><span class="p">&gt;</span> <span class="hl">JAK TO DZIAŁA:</span> W każdej lokacji znajdziesz karteczkę z <span class="hl">imieniem świadka</span> i <span class="hl">kluczem</span>. Wpisz oba pola — system sam sprawdzi poprawność.</div>
+      </div>
+    </div>
+    <div class="team-select">
+      <button class="team-btn" onclick="selectTeam(1)">[ 1 ]<span>DRUŻYNA PIERWSZA</span></button>
+      <button class="team-btn" onclick="selectTeam(2)">[ 2 ]<span>DRUŻYNA DRUGA</span></button>
+      <button class="team-btn" onclick="selectTeam(3)" style="grid-column:1/-1;">[ 3 ]<span>DRUŻYNA TRZECIA</span></button>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screen-game" class="screen">
+    <div class="status-bar">
+      <span>DRUŻYNA: <span id="team-label">—</span></span>
+      <span class="timer-disp" id="game-timer">00:00</span>
+      <span>ŚWIADEK: <span id="witness-counter">1/10</span></span>
+    </div>
+    <div class="progress-bar" id="progress-bar"></div>
+    <div id="task-area"></div>
+
+    <div class="caesar-area">
+      <div class="caesar-label">&gt; DANE Z KARTECZKI — WPISZ I ZATWIERDŹ:</div>
+      <div class="caesar-inputs">
+        <div class="caesar-field-wrap">
+          <div class="caesar-field-label">IMIĘ</div>
+          <input type="text" class="caesar-field" id="name-input" placeholder="Imię" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="caesar-field-wrap">
+          <div class="caesar-field-label">KLUCZ</div>
+          <input type="number" class="caesar-field shift-field" id="shift-input" placeholder="Liczba" min="1" max="999">
+        </div>
+        <button class="btn-submit" id="submit-btn" onclick="submitCode()">ZATWIERDŹ ↵</button>
+      </div>
+      <div class="lock-banner" id="lock-banner">
+        <div class="lock-banner-title">BŁĘDNE DANE — SYSTEM ZABLOKOWANY</div>
+        <div class="lock-banner-timer" id="lock-timer">60</div>
+        <div style="font-size:0.72em;color:#ff334488;letter-spacing:2px;">sekund do odblokowania</div>
+        <div class="lock-bar-outer"><div class="lock-bar-inner" id="lock-bar"></div></div>
+      </div>
+      <div class="feedback-area" id="feedback-area"></div>
+    </div>
+  </div>
+
+  <!-- FINAL -->
+  <div id="screen-final" class="screen">
+    <div class="final-title">MISJA<br>ZAKOŃCZONA</div>
+    <div class="terminal-box" data-label="RAPORT KOŃCOWY">
+      <div class="tt">
+        <div><span class="p">&gt;</span> Wszyscy świadkowie zidentyfikowani.</div>
+        <div><span class="p">&gt;</span> Testament Prapradziadka Kazimierza: <span class="hl">PRZEANALIZOWANY</span></div>
+        <hr class="div">
+        <div><span class="p">&gt;</span> Świadek #3 (Bartek / Wiedźmin) miał rację.</div>
+        <div><span class="p">&gt;</span> Cały spadek to było <span class="er">OSZUSTWO PODATKOWE</span>.</div>
+        <div><span class="p">&gt;</span> 40 000 000 PLN → przepadło na rzecz Skarbu Państwa.</div>
+        <hr class="div">
+        <div><span class="p">&gt;</span> Za to Igor dostał puszkę kajmaku. <span class="hl">Sprawiedliwość wymierzona.</span></div>
+        <hr class="div">
+        <div><span class="p">&gt;</span> Czas misji: <span class="timer-disp" id="final-time">—</span></div>
+        <div><span class="p">&gt;</span> Użyte podpowiedzi: <span class="hl" id="final-hints">—</span></div>
+      </div>
+    </div>
+    <div class="money-rain" id="money-rain"></div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+//  TASK ORDERS
+// ─────────────────────────────────────────────
+const ORDER_TEAM1 = ['igor','piotr','bartek','grzegorz','maks','szymonW','olek','adam','jan','szymonH'];
+const ORDER_TEAM2 = ['grzegorz','maks','szymonW','olek','adam','jan','szymonH','igor','piotr','bartek'];
+const ORDER_TEAM3 = ['olek','adam','jan','szymonH','igor','piotr','bartek','grzegorz','maks','szymonW'];
+
+// ─────────────────────────────────────────────
+//  TASKS
+// ─────────────────────────────────────────────
+const TASKS = {
+  igor: {
+    answer: 'IGOR',
+    shift: 3,
+    hintDelay: 200,
+    label: 'ŚWIADEK #? — ŁADOWANIE...',
+    body: () => `
+      <div class="bar-wrap">
+        <div class="bar-label">&gt; Ładowanie danych świadka #1...</div>
+        <div class="bar-outer"><div class="bar-inner" id="igor-bar" style="width:0%"></div></div>
+        <div style="font-size:0.74em;color:var(--green-dim);margin-top:4px;">&gt; <span id="igor-pct">0</span>%</div>
+      </div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> Ładowanie utknęło. Świadek najwyraźniej nie może się pojawić na czas.</div>
+      <div><span class="p">&gt;</span> Klucz znajduje się tam gdzie przychodzi po spóźnieniu się do szkoły.</div>
+    `,
+    hint: `Udajcie się tam gdzie większość zostawia kurtki.`,
+    onMount: () => {
+      let pct = 0;
+      if (window._igorIv) clearInterval(window._igorIv);
+      // 0.1% every 3.5s → 1000s total for 100%. Intentionally very slow.
+      window._igorIv = setInterval(() => {
+        pct = Math.min(100, pct + 0.1);
+        const b = document.getElementById('igor-bar');
+        const p = document.getElementById('igor-pct');
+        if (!b) { clearInterval(window._igorIv); window._igorIv = null; return; }
+        b.style.width = pct + '%';
+        if (p) p.textContent = pct.toFixed(1);
+      }, 3500);
+    }
+  },
+
+  piotr: {
+    answer: 'PIOTR',
+    shift: 9,
+    label: 'NOWY MAIL — PRIORYTET KRYTYCZNY',
+    body: () => `
+      <div><span class="p">&gt;</span> <span class="hl">OD:</span> kancelaria.pradziada@total-legit.pl</div>
+      <div><span class="p">&gt;</span> <span class="hl">TEMAT:</span> Tożsamość Prapradziadka Kazimierza</div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> Agenci,</div>
+      <div><span class="p">&gt;</span> W testamencie nie podano prawdziwego imienia pradziada wprost.</div>
+      <div><span class="p">&gt;</span> Wiadomo tylko że:</div>
+      <div><span class="p">&gt;</span> &nbsp;— Był człowiekiem który zawsze wszystko ogarniał</div>
+      <div><span class="p">&gt;</span> &nbsp;— Rodzina mówiła: <span class="hl">"on to ogarnie"</span></div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> Podaj imię pradziada by odblokować testament.</div>
+      <div><span class="p">&gt;</span> <span class="er">(Imię NIE jest napisane w tym mailu — wywnioskuj je)</span></div>
+      <div><span class="p">&gt;</span> Klucz to ostatnia liczba jego rocznika</div>
+    `,
+    hint: `Ten co najstarzej wygląda choć nie jest.`,
+    successExtra: () => {
+      document.getElementById('task-area').innerHTML += `
+        <div class="terminal-box" data-label="SYSTEM" style="border-color:var(--yellow);margin-top:16px;">
+          <div class="money-rain">
+            💸💸💸 40 000 000 PLN ODBLOKOWANE 💸💸💸<br>
+            $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$<br>
+            &gt; ...ale chwileczkę. Czy to na pewno prawdziwe i legalne?<br>
+            &gt; Szukaj dalej. Jeden ze świadków wie więcej.
+          </div>
+        </div>`;
+    }
+  },
+
+  bartek: {
+    answer: 'BARTEK',
+    shift: 4,
+    label: 'PRZECHWYCONA WIADOMOŚĆ',
+    body: () => `
+      <div><span class="p">&gt;</span> <span class="hl">NADAWCA:</span>(tożsamość nieznana)</div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> <em>"Słyszałem że dostaniesz duży majątek.</em></div>
+      <div><span class="p">&gt;</span> <em>&nbsp;Grosza daj wiedźminowi."</em></div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> Wiadomość pochodzi od kogoś kto zna się na historii.</div>
+      <div><span class="p">&gt;</span> Świadek ukrył dokument na <span class="hl">TABLICY OGŁOSZEŃ</span>.</div>
+      <div><span class="p">&gt;</span> Znajdź go. Wróć z danymi do szyfru.</div>
+    `,
+    hint: `Notatka, która znajduje się na tablicy ogłoszeń na 1 piętrze, ma wypisany klucz.`
+  },
+
+  grzegorz: {
+    answer: 'GRZEGORZ',
+    shift: 2,
+    label: 'PLIK DOWODOWY — ZAŁĄCZNIK DO TESTAMENTU',
+    body: () => `
+      <div><span class="p">&gt;</span> Pradziado dołączył do testamentu tajemniczy rysunek.</div>
+      <div><span class="p">&gt;</span> Twierdził że <span class="hl">"to jedyny uczciwy świadek"</span>.</div>
+      <div><span class="p">&gt;</span> Rysunek jest zakodowany — połącz kropki by go odtworzyć.</div>
+      <div><span class="p">&gt;</span> Dokumenty do odbioru w <span class="hl">BIBLIOTECE</span> u bibliotekarki.</div>
+      <div><span class="p">&gt;</span> Połączony obraz należy pokazać bibliotekarce, by otrzymać klucz.</div>
+    `,
+    hint: `Wydrukowany arkusz "połącz kropki" do odbioru u bibliotekarki.<br>Po połączeniu wszystkich kropek pojawi się tajemniczy obraz.<br>Pokaż gotowy obraz bibliotekarce — ona ma klucz.`
+  },
+
+  maks: {
+    answer: 'MAKS',
+    shift: 5,
+    label: 'PRZEDMIOT DOWODOWY — TESTAMENT §7',
+    body: () => `
+      <div><span class="p">&gt;</span> <em>"Właścicielowi niebieskich butów</em></div>
+      <div><span class="p">&gt;</span> <em>&nbsp;w szafce numer <span class="hl">[NUMER SZAFKI]</span> przy portierni</em></div>
+      <div><span class="p">&gt;</span> <em>&nbsp;przekazuję swoje pozdrowienia i 0 złotych,</em></div>
+      <div><span class="p">&gt;</span> <em>&nbsp;bo i tak wie że jest ważny."</em></div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> Udajcie się do szafki na <span class="hl">dolnym korytarzu</span>.</div>
+      <div><span class="p">&gt;</span> Szafka powinna być otwarta</div>
+    `,
+    hint: `Poszukajcie przy sali 010.<br> Te buty są charakterystyczne dla jednej z postaci z "Domu Kultury"`
+  },
+
+  szymonW: {
+    answer: 'SZYMON W',
+    shift: 1,
+    label: 'BŁĄD SYSTEMU',
+    body: () => `
+      <div><span class="p">&gt;</span> Ładowanie profilu świadka...</div>
+      <div><span class="p">&gt;</span> <span class="er">ERROR:</span> Nie można zlokalizować świadka w bazie danych.</div>
+      <div><span class="p">&gt;</span> Świadek ten rzadko stawia się tam gdzie powinien.</div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> Ostatni znany sygnał: <span class="hl">SCHODY Z WIELOMA TWARZAMI</span></div>
+      <div><span class="p">&gt;</span> Znajdźcie tam karteczkę z kodem QR i ją zeskanuj.</div>
+    `,
+    hint: `QR kod prowadzi na stronę z błędem 404.<br>Na tej samej fizycznej karteczce: imię świadka i klucz.`
+  },
+
+  olek: {
+    answer: 'OLEK',
+    shift: 2,
+    label: 'PLIK ARCHIWALNY — ZEZNANIE ŚWIADKA',
+    body: () => `
+      <div><span class="p">&gt;</span> <em>"Znam tego człowieka od dawna.</em></div>
+      <div><span class="p">&gt;</span> <em>&nbsp;Kiedyś był mały, teraz jest średni.</em></div>
+      <div><span class="p">&gt;</span> &nbsp;<span class="hl">'Krasnol który podrósł, ale nie za bardzo.'</span></div>
+      <div><span class="p">&gt;</span> <em>&nbsp;Często grał w piłkę na świeżym powietrzu."</em></div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> Lokalizacja: <span class="hl">BOISKO / DWÓR</span></div>
+      <div><span class="p">&gt;</span> Wróć z karteczki z imieniem i kluczem.</div>
+    `,
+    hint: `Karteczka znajduje się przy ławkach i drzewach.`
+  },
+
+  adam: {
+    answer: 'ADAM',
+    shift: 6,
+    label: 'ZAŁĄCZNIK DO TESTAMENTU — ZDJĘCIE #8',
+    body: () => `
+      <div><span class="p">&gt;</span> Pradziado dołączył do testamentu następujące zdjęcie:</div>
+      <hr class="div">
+      <div style="text-align:center;padding:10px 0;">
+        <img src="osowa.png" alt="%&!W& - dzielnica Gdańska" style="max-width:100%;max-height:320px;border:1px solid var(--border);filter:brightness(0.85) saturate(0.7);">
+        <div style="font-size:0.68em;color:var(--green-dim);margin-top:6px;letter-spacing:2px;">[MAPA: OSOWA — DZIELNICA GDAŃSKA]</div>
+      </div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> <em>"W tym miejscu ukryty jest ślad.</em></div>
+      <div><span class="p">&gt;</span> <em>&nbsp;Jeden ze świadków obecnie tam przesiaduje.</em></div>
+      <div><span class="p">&gt;</span> <em>&nbsp;Znajdźcie na niego dowody — Ta mapa napewno chce nam coś więcej przekazać"</em></div>
+    `,
+    hint: `Skojarzcie miejsca do okoła i sprawdźcie mapę <br>Ta dzielnica łączy się z gwardyjnym członkiem <br>Klucz jest ukryty w mapie`
+  },
+
+  jan: {
+    answer: 'JAN',
+    shift: 1,
+    label: 'PRZECHWYCONE NAGRANIE AUDIO — ZAŁĄCZNIK #9',
+    body: () => `
+      <div><span class="p">&gt;</span> <span class="hl">JĘZYK:</span> rosyjski</div>
+      <div><span class="p">&gt;</span> Pradziado nagrał zeznanie jednego ze świadków.</div>
+      <div><span class="p">&gt;</span> Świadek zeznawał wyłącznie po rosyjsku.</div>
+      <hr class="div">
+      <div style="margin:16px 0;">
+        <div style="font-size:0.72em;color:var(--green-dim);letter-spacing:2px;margin-bottom:8px;">&gt; ODTWÓRZ NAGRANIE:</div>
+        <audio id="jan-audio" src="russia.mp3" controls style="width:100%;"></audio>
+      </div>
+    `,
+    hint: `Użyjcie Google Translate w trybie audio (mikrofon). <br>Kartka znajduje się przed drzwiami pokoju propagandy i radia`
+  },
+
+  szymonH: {
+    answer: 'SZYMON H',
+    shift: 8,
+    label: 'OSTATNI ŚWIADEK — TOŻSAMOŚĆ NIEZNANA',
+    body: () => `
+      <div><span class="p">&gt;</span> W testamencie pradziada ostatni wpis brzmi:</div>
+      <hr class="div">
+      <div style="line-height:2.2;padding:8px 0;">
+        <span class="p">&gt;</span> <em>Co dzień na mrozie, znany wszystkim jako Mrożon.</em><br>
+        <span class="p">&gt;</span> <em>Hardcore chill — tak go opisują znajomi.</em><br>
+        <span class="p">&gt;</span> <em>Inni się grzeją, on zawsze spokojny.</em><br>
+        <span class="p">&gt;</span> <em>Lód mu niestraszny, to jego żywioł.</em><br>
+        <span class="p">&gt;</span> <em>Lokalizacja ostatniego śladu — tam gdzie wiedzą."</em>
+      </div>
+      <hr class="div">
+      <div><span class="p">&gt;</span> <span class="hl">Pierwsze litery każdej linijki to nie przypadek.</span></div>
+      <div><span class="p">&gt;</span> Ułóż je w słowo — ono wskaże gdzie szukać klucza.</div>
+    `,
+    hint: `Pierwsze litery linijek układają się w słowo CHILL.<br>W szafce opisanej tym słowem znajdziesz klucz.`
+  }
+};
+
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+const S = {
+  team: null, order: [], step: 0,
+  startTime: null, locked: false,
+  lockIv: null, gameIv: null, hintIv: null,
+  hintsUsed: 0
+};
+
+// ─────────────────────────────────────────────
+//  TEAM SELECT
+// ─────────────────────────────────────────────
+function selectTeam(t) {
+  S.team = t;
+  S.order = t === 1 ? ORDER_TEAM1 : t === 2 ? ORDER_TEAM2 : ORDER_TEAM3;
+  S.step = 0;
+  S.startTime = Date.now();
+  S.hintsUsed = 0;
+  document.getElementById('screen-intro').classList.remove('active');
+  document.getElementById('screen-game').classList.add('active');
+  document.getElementById('team-label').textContent = t === 1 ? 'PIERWSZA' : t === 2 ? 'DRUGA' : 'TRZECIA';
+  buildPips();
+  startGameTimer();
+  renderTask();
+}
+
+// ─────────────────────────────────────────────
+//  TIMERS
+// ─────────────────────────────────────────────
+function startGameTimer() {
+  S.gameIv = setInterval(() => {
+    const e = Math.floor((Date.now() - S.startTime) / 1000);
+    document.getElementById('game-timer').textContent = pad(Math.floor(e/60)) + ':' + pad(e%60);
+  }, 1000);
+}
+function getElapsed() {
+  const e = Math.floor((Date.now() - S.startTime) / 1000);
+  return pad(Math.floor(e/60)) + ':' + pad(e%60);
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+
+// ─────────────────────────────────────────────
+//  PROGRESS PIPS
+// ─────────────────────────────────────────────
+function buildPips() {
+  const pb = document.getElementById('progress-bar');
+  pb.innerHTML = '';
+  for (let i = 0; i < 10; i++) {
+    const d = document.createElement('div');
+    d.className = 'pip' + (i === 0 ? ' current' : '');
+    d.id = 'pip' + i;
+    pb.appendChild(d);
+  }
+}
+function updatePips() {
+  for (let i = 0; i < 10; i++) {
+    const p = document.getElementById('pip' + i);
+    if (!p) continue;
+    p.className = 'pip';
+    if (i < S.step) p.classList.add('done');
+    else if (i === S.step) p.classList.add('current');
+  }
+}
+
+// ─────────────────────────────────────────────
+//  RENDER TASK
+// ─────────────────────────────────────────────
+function renderTask() {
+  if (window._igorIv) { clearInterval(window._igorIv); window._igorIv = null; }
+  if (S.hintIv) { clearInterval(S.hintIv); S.hintIv = null; }
+
+  const key = S.order[S.step];
+  const task = TASKS[key];
+  const hintSecs = task.hintDelay !== undefined ? task.hintDelay : 360; // default 6 min
+
+  document.getElementById('witness-counter').textContent = (S.step+1) + '/10';
+  updatePips();
+  document.getElementById('name-input').value = '';
+  document.getElementById('shift-input').value = '';
+  document.getElementById('feedback-area').innerHTML = '';
+  document.getElementById('lock-banner').classList.remove('active');
+  setInputsDisabled(false);
+
+  document.getElementById('task-area').innerHTML = `
+    <div class="terminal-box" data-label="${task.label}">
+      <div class="tt">
+        ${task.body()}
+        ${task.hint ? `
+        <div class="hint-section">
+          <button class="hint-btn" id="hint-btn" disabled onclick="showHint()">🔒 POKAŻ PODPOWIEDŹ</button>
+          <span class="hint-countdown" id="hint-cd">(dostępna za <span id="hint-secs">${hintSecs}</span>s)</span>
+          <div class="hint-content" id="hint-box">&gt; PODPOWIEDŹ:<br>${task.hint}</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+
+  if (task.onMount) setTimeout(task.onMount, 80);
+
+  // Hint countdown
+  if (task.hint) {
+    let secs = hintSecs;
+    S.hintIv = setInterval(() => {
+      secs--;
+      const el = document.getElementById('hint-secs');
+      if (el) el.textContent = secs;
+      if (secs <= 0) {
+        clearInterval(S.hintIv); S.hintIv = null;
+        const btn = document.getElementById('hint-btn');
+        const cd = document.getElementById('hint-cd');
+        if (btn) { btn.disabled = false; btn.textContent = '💡 POKAŻ PODPOWIEDŹ'; }
+        if (cd) cd.style.display = 'none';
+      }
+    }, 1000);
+  }
+
+  setTimeout(() => document.getElementById('name-input').focus(), 100);
+}
+
+function showHint() {
+  const c = document.getElementById('hint-box');
+  const b = document.getElementById('hint-btn');
+  if (c) c.classList.add('visible');
+  if (b) b.style.display = 'none';
+  S.hintsUsed++;
+}
+
+// ─────────────────────────────────────────────
+//  SUBMIT
+// ─────────────────────────────────────────────
+function submitCode() {
+  if (S.locked) return;
+
+  const name = document.getElementById('name-input').value.trim().toUpperCase();
+  const shift = parseInt(document.getElementById('shift-input').value.trim(), 10);
+  const task = TASKS[S.order[S.step]];
+
+  if (!name) { setFeedback('yellow', '&gt; Wprowadź imię świadka z karteczki.'); return; }
+  if (isNaN(shift) || shift < 1) { setFeedback('yellow', '&gt; Wprowadź poprawny klucz.'); return; }
+
+  if (name === task.answer && shift === task.shift) {
+    setFeedback('green', '&gt; ✓ KOD PRZYJĘTY — ŚWIADEK ZIDENTYFIKOWANY');
+    document.body.classList.add('success-flash');
+    setTimeout(() => document.body.classList.remove('success-flash'), 1000);
+    if (task.successExtra) { task.successExtra(); setTimeout(advance, 3000); }
+    else setTimeout(advance, 900);
+  } else {
+    triggerLock();
+  }
+}
+
+function advance() {
+  S.step++;
+  if (S.step >= S.order.length) endGame();
+  else renderTask();
+}
+
+function setFeedback(color, html) {
+  const c = { green: 'var(--green)', yellow: 'var(--yellow)', red: 'var(--red)' };
+  document.getElementById('feedback-area').innerHTML = `<span style="color:${c[color]}">${html}</span>`;
+}
+
+function setInputsDisabled(disabled) {
+  document.getElementById('name-input').disabled = disabled;
+  document.getElementById('shift-input').disabled = disabled;
+  document.getElementById('submit-btn').disabled = disabled;
+}
+
+// ─────────────────────────────────────────────
+//  LOCK — inline banner, inputs disabled
+// ─────────────────────────────────────────────
+function triggerLock() {
+  S.locked = true;
+  setInputsDisabled(true);
+  document.getElementById('feedback-area').innerHTML = '';
+
+  let secs = 60;
+  const banner = document.getElementById('lock-banner');
+  const te = document.getElementById('lock-timer');
+  const be = document.getElementById('lock-bar');
+  banner.classList.add('active');
+  te.textContent = secs;
+  be.style.width = '100%';
+
+  S.lockIv = setInterval(() => {
+    secs--;
+    te.textContent = secs;
+    be.style.width = (secs/60*100) + '%';
+    if (secs <= 0) {
+      clearInterval(S.lockIv);
+      banner.classList.remove('active');
+      S.locked = false;
+      setInputsDisabled(false);
+      setFeedback('red', '&gt; Błędne dane. Sprawdź karteczkę i spróbuj ponownie.');
+      document.getElementById('name-input').value = '';
+      document.getElementById('shift-input').value = '';
+      document.getElementById('name-input').focus();
+    }
+  }, 1000);
+}
+
+// ─────────────────────────────────────────────
+//  END GAME
+// ─────────────────────────────────────────────
+function endGame() {
+  clearInterval(S.gameIv);
+  if (S.hintIv) clearInterval(S.hintIv);
+  if (window._igorIv) clearInterval(window._igorIv);
+
+  document.getElementById('screen-game').classList.remove('active');
+  document.getElementById('screen-final').classList.add('active');
+  document.getElementById('final-time').textContent = getElapsed();
+  document.getElementById('final-hints').textContent = S.hintsUsed + (S.hintsUsed === 1 ? ' podpowiedź' : S.hintsUsed < 5 ? ' podpowiedzi' : ' podpowiedzi');
+
+  const chars = ['$','€','💸','PLN','40M','$$'];
+  let rain = '';
+  for (let i = 0; i < 5; i++) {
+    let row = '';
+    for (let j = 0; j < 9; j++) row += chars[Math.floor(Math.random()*chars.length)] + ' ';
+    rain += row + '\n';
+  }
+  document.getElementById('money-rain').textContent = rain;
+}
+
+// ─────────────────────────────────────────────
+//  KEYBOARD
+// ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('screen-game').classList.contains('active')) {
+    submitCode();
+  }
+});
+</script>
+</body>
+</html>
