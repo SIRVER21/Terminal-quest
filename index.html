@@ -606,12 +606,12 @@ function renderTask() {
 
   // Hint countdown
   if (task.hint) {
-    let secs = hintSecs;
+    const hintUnlockAt = Date.now() + hintSecs * 1000;
     S.hintIv = setInterval(() => {
-      secs--;
+      const remaining = Math.ceil((hintUnlockAt - Date.now()) / 1000);
       const el = document.getElementById('hint-secs');
-      if (el) el.textContent = secs;
-      if (secs <= 0) {
+      if (el) el.textContent = Math.max(0, remaining);
+      if (remaining <= 0) {
         clearInterval(S.hintIv); S.hintIv = null;
         const btn = document.getElementById('hint-btn');
         const cd = document.getElementById('hint-cd');
@@ -620,6 +620,7 @@ function renderTask() {
       }
     }, 1000);
   }
+
 
   setTimeout(() => document.getElementById('name-input').focus(), 100);
 }
