@@ -308,7 +308,7 @@ const ORDER_TEAM3 = ['olek','adam','jan','szymonH','igor','piotr','bartek','grze
 const TASKS = {
   igor: {
     answer: 'IGOR',
-    shift: 3,
+    shift: 4,
     hintDelay: 200,
     label: 'ŚWIADEK #? — ŁADOWANIE...',
     body: () => `
@@ -318,11 +318,11 @@ const TASKS = {
         <div style="font-size:0.74em;color:var(--green-dim);margin-top:4px;">&gt; <span id="igor-pct">0</span>%</div>
       </div>
       <hr class="div">
-      <div><span class="p">&gt;</span> Ładowanie utknęło. Świadek najwyraźniej nie może się pojawić na czas.</div>
-      <div><span class="p">&gt;</span> Klucz znajduje się tam gdzie przychodzi najpierw po spóźnieniu się do szkoły.</div>
-      <div><span class="p">&gt;</span> Być może osoby zaznajomione z tym rejonem będą coś więcej wiedzieć.</div>
+      <div><span class="p">&gt;</span> Ładowanie długo zajmuje. Świadek najwyraźniej nie może się pojawić na czas.</div>
+      <div><span class="p">&gt;</span> Zawsze przychodzi najpierw zostawic kurtkę po spóźnieniu się do szkoły.</div>
+      <div><span class="p">&gt;</span> Kluczem jest liczba punktów do odbioru.</div>
     `,
-    hint: `Udajcie się tam gdzie większość zostawia kurtki.`,
+    hint: `Udajcie się tam gdzie większość zostawia kurtki. <br>Kluczem jest ilosć okieniek do odbierania kurtek`,
     onMount: () => {
       let pct = 0;
       if (window._igorIv) clearInterval(window._igorIv);
